@@ -35,13 +35,13 @@ jobs:
       - name: Run BDD Tests
         run: mvn test -Dtest="CucumberTestRunner"
 
-      - name: Generate Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
-        with:
-          name: Maven Tests
-          path: target/surefire-reports/*.xml
-          reporter: java-junit
+      #- name: Generate Test Report
+      #  uses: dorny/test-reporter@v1
+       # if: success() || failure()
+       # with:
+        #  name: Maven Tests
+        #  path: target/surefire-reports/*.xml
+       #   reporter: java-junit
 
       - name: Build Application
         run: mvn clean package -DskipTests
