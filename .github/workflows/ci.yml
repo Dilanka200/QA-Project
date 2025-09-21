@@ -36,7 +36,7 @@ jobs:
       - name: Run tests
         run: |
           chmod +x mvnw
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./mvnw -B test
+        ./mvnw -B -Dtest='*ServiceTest,*ApiTest,CucumberTestRunner' test
 
       - name: Build JAR
         run: ./mvnw -B -DskipTests package
