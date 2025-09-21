@@ -10,8 +10,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
-import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.when;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -28,7 +27,6 @@ public class NoteApiTest {
     }
 
     private long createNoteAndReturnId(String title, String content) {
-        // Use jsonPath().getLong("id") so we don't care if backend returns Integer or Long
         return given()
                 .contentType(ContentType.JSON)
                 .body("{\"title\":\"" + title + "\",\"content\":\"" + content + "\"}")
@@ -38,6 +36,7 @@ public class NoteApiTest {
                 .statusCode(201)
                 .body("title", equalTo(title))
                 .body("id", notNullValue())
+                // IMPORTANT: use jsonPath().getLong("id") to avoid Integer→Long cast issues
                 .extract()
                 .jsonPath()
                 .getLong("id");
@@ -60,7 +59,6 @@ public class NoteApiTest {
     @Test
     @Order(2)
     void testGetAllNotes() {
-        // Ensure at least one exists
         createNoteAndReturnId("List Note", "For listing");
 
         when()
@@ -76,11 +74,10 @@ public class NoteApiTest {
         long id = createNoteAndReturnId("Specific Note", "Specific Content");
 
         when()
-                .get("/api/notes/{id}", id)   // use path param, not string concat
+                .get("/api/notes/{id}", id) // use path param
                 .then()
                 .statusCode(200)
-                // JSON numbers may be int-sized; compare against int value
-                .body("id", equalTo((int) id))
+                .body("id", equalTo((int) id)) // JSON numbers often come back as int
                 .body("title", equalTo("Specific Note"));
     }
 
