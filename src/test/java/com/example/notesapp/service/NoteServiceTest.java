@@ -48,7 +48,13 @@ class NoteServiceTest {
         assertEquals("Test Note", result.getTitle());
         verify(noteRepository, times(1)).save(any(Note.class));
     }
-
+    @Test
+    void createNote_TitleTooShort_ShouldThrowException() {
+        Note n = new Note();
+        n.setTitle("Hi"); // 2 chars
+        n.setContent("short");
+        assertThrows(IllegalArgumentException.class, () -> noteService.createNote(n));
+    }
     // Test 2: Create note with empty title should throw exception
     @Test
     void createNote_WithEmptyTitle_ShouldThrowException() {

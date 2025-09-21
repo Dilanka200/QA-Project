@@ -12,6 +12,15 @@ import java.util.Optional;
 public class NoteService {
 
     private final NoteRepository noteRepository;
+    private static final int MIN_TITLE = 3;
+    private static final int MAX_TITLE = 100;
+
+    private void validateNote(Note note) {
+        String title = (note.getTitle() == null ? "" : note.getTitle().trim());
+        if (title.isEmpty()) throw new IllegalArgumentException("Title cannot be empty");
+        if (title.length() < MIN_TITLE) throw new IllegalArgumentException("Title too short");
+        if (title.length() > MAX_TITLE) throw new IllegalArgumentException("Title too long");
+    }
 
     public List<Note> getAllNotes() {
         return noteRepository.findAll();
@@ -48,14 +57,7 @@ public class NoteService {
         noteRepository.delete(note);
     }
 
-    private void validateNote(Note note) {
-        if (note.getTitle() == null || note.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Note title cannot be empty");
-        }
-        if (note.getTitle().length() > 100) {
-            throw new IllegalArgumentException("Note title cannot exceed 100 characters");
-        }
-    }
+
 
     private String sanitizeInput(String input) {
         if (input == null) return null;

@@ -37,17 +37,34 @@
             box-sizing: border-box;
         }
         button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
+            padding: 8px 12px;
+            margin: 3px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+        }
+        .main-btn {
+            background-color: #007bff;
+            color: white;
             width: 100%;
             margin-top: 10px;
         }
-        button:hover {
+        .main-btn:hover {
             background-color: #0056b3;
+        }
+        .edit-btn {
+            background-color: #ffc107;
+            color: black;
+        }
+        .edit-btn:hover {
+            background-color: #e0a800;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
         }
         .note {
             background-color: #fff;
@@ -62,7 +79,7 @@
             color: #333;
         }
         .note-content {
-            color: #666;
+            color: #555;
             margin: 10px 0;
         }
         .note-meta {
@@ -95,10 +112,10 @@
     <h1>My Notes App</h1>
 
     <div class="note-form">
-        <h2>Add New Note</h2>
+        <h2 id="formTitle">Add New Note</h2>
         <input type="text" id="noteTitle" placeholder="Enter note title" maxlength="100">
         <textarea id="noteContent" placeholder="Enter note content" rows="4"></textarea>
-        <button id="addNoteBtn" onclick="addNote()">Add Note</button>
+        <button id="addNoteBtn" class="main-btn" onclick="addNote()">Add Note</button>
         <div id="message"></div>
     </div>
 
@@ -114,58 +131,41 @@
         loadNotes();
     };
 
-    // Add a new note
+    // ADD new note
     function addNote() {
         const title = document.getElementById('noteTitle').value;
         const content = document.getElementById('noteContent').value;
         const messageDiv = document.getElementById('message');
 
-        // Clear previous messages
         messageDiv.innerHTML = '';
 
-        // Validation
         if (!title.trim()) {
             messageDiv.innerHTML = '<div class="error">Title cannot be empty!</div>';
             return;
         }
 
-        // Create note object
-        const note = {
-            title: title,
-            content: content
-        };
+        const note = { title: title, content: content };
 
-        // Send to API
         fetch('/api/notes', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(note)
         })
         .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
+            if (response.ok) return response.json();
             throw new Error('Failed to create note');
         })
         .then(data => {
-            messageDiv.innerHTML = '<div class="success">Note added successfully!</div>';
-            document.getElementById('noteTitle').value = '';
-            document.getElementById('noteContent').value = '';
+            showMessage("Note added successfully!", "success");
+            resetForm();
             loadNotes();
-
-            // Clear success message after 3 seconds
-            setTimeout(() => {
-                messageDiv.innerHTML = '';
-            }, 3000);
         })
         .catch(error => {
-            messageDiv.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+            showMessage("Error: " + error.message, "error");
         });
     }
 
-    // Load all notes - FIXED VERSION WITH XSS PROTECTION
+    // LOAD all notes
     function loadNotes() {
         fetch('/api/notes')
             .then(response => response.json())
@@ -182,33 +182,115 @@
                     const noteDiv = document.createElement('div');
                     noteDiv.className = 'note';
 
-                    // Create elements safely to prevent XSS
                     const noteTitle = document.createElement('h3');
-                    noteTitle.textContent = note.title;  // textContent is safe
+                    noteTitle.textContent = note.title;
 
                     const noteContent = document.createElement('div');
                     noteContent.className = 'note-content';
-                    noteContent.textContent = note.content || 'No content';  // textContent is safe
+                    noteContent.textContent = note.content || 'No content';
 
                     const noteMeta = document.createElement('div');
                     noteMeta.className = 'note-meta';
                     noteMeta.textContent = 'Created: ' + new Date(note.createdAt).toLocaleString();
 
-                    // Append elements
+                    // Action buttons
+                    const actionsDiv = document.createElement('div');
+                    const editBtn = document.createElement('button');
+                    editBtn.textContent = "Edit";
+                    editBtn.className = "edit-btn";
+                    editBtn.onclick = () => editNote(note);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.className = "delete-btn";
+                    deleteBtn.onclick = () => deleteNote(note.id);
+
+                    actionsDiv.appendChild(editBtn);
+                    actionsDiv.appendChild(deleteBtn);
+
                     noteDiv.appendChild(noteTitle);
                     noteDiv.appendChild(noteContent);
                     noteDiv.appendChild(noteMeta);
-
+                    noteDiv.appendChild(actionsDiv);
                     container.appendChild(noteDiv);
                 });
             })
             .catch(error => {
                 console.error('Error loading notes:', error);
-                const errorMsg = document.createElement('p');
-                errorMsg.style.color = 'red';
-                errorMsg.textContent = 'Error loading notes. Please try again.';
-                document.getElementById('notesContainer').appendChild(errorMsg);
+                showMessage("Error loading notes!", "error");
             });
+    }
+
+    // DELETE a note
+    function deleteNote(id) {
+        if (!confirm("Are you sure you want to delete this note?")) return;
+
+        fetch(`/api/notes/${id}`, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) loadNotes();
+                else showMessage("Failed to delete note", "error");
+            })
+            .catch(error => console.error("Delete error:", error));
+    }
+
+    // EDIT note (prefill form)
+    function editNote(note) {
+        document.getElementById("noteTitle").value = note.title;
+        document.getElementById("noteContent").value = note.content;
+        document.getElementById("formTitle").textContent = "Edit Note";
+
+        const addBtn = document.getElementById("addNoteBtn");
+        addBtn.textContent = "Update Note";
+        addBtn.onclick = function() { updateNote(note.id); };
+    }
+
+    // UPDATE note
+    function updateNote(id) {
+        const title = document.getElementById("noteTitle").value;
+        const content = document.getElementById("noteContent").value;
+        const messageDiv = document.getElementById("message");
+
+        if (!title.trim()) {
+            showMessage("Title cannot be empty!", "error");
+            return;
+        }
+
+        const note = { title: title, content: content };
+
+        fetch(`/api/notes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(note)
+        })
+        .then(response => {
+            if (response.ok) return response.json();
+            throw new Error("Failed to update note");
+        })
+        .then(data => {
+            showMessage("Note updated successfully!", "success");
+            resetForm();
+            loadNotes();
+        })
+        .catch(error => {
+            showMessage("Error: " + error.message, "error");
+        });
+    }
+
+    // HELPERS
+    function resetForm() {
+        document.getElementById("noteTitle").value = '';
+        document.getElementById("noteContent").value = '';
+        document.getElementById("formTitle").textContent = "Add New Note";
+
+        const addBtn = document.getElementById("addNoteBtn");
+        addBtn.textContent = "Add Note";
+        addBtn.onclick = addNote;
+    }
+
+    function showMessage(msg, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.innerHTML = `<div class="${type}">${msg}</div>`;
+        setTimeout(() => { messageDiv.innerHTML = ''; }, 3000);
     }
 </script>
 </body>
