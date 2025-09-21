@@ -23,6 +23,7 @@ public class NoteService {
 
     public Note createNote(Note note) {
         validateNote(note);
+        // Make sure these lines are present:
         note.setTitle(sanitizeInput(note.getTitle()));
         note.setContent(sanitizeInput(note.getContent()));
         return noteRepository.save(note);
@@ -34,6 +35,7 @@ public class NoteService {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Note not found with id: " + id));
 
+        // Make sure these lines use sanitizeInput:
         note.setTitle(sanitizeInput(noteDetails.getTitle()));
         note.setContent(sanitizeInput(noteDetails.getContent()));
 

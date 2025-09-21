@@ -165,7 +165,7 @@
         });
     }
 
-    // Load all notes
+    // Load all notes - FIXED VERSION WITH XSS PROTECTION
     function loadNotes() {
         fetch('/api/notes')
             .then(response => response.json())
@@ -181,20 +181,33 @@
                 notes.forEach(note => {
                     const noteDiv = document.createElement('div');
                     noteDiv.className = 'note';
-                    noteDiv.innerHTML = `
-                        <h3>${note.title}</h3>
-                        <div class="note-content">${note.content || 'No content'}</div>
-                        <div class="note-meta">
-                            Created: ${new Date(note.createdAt).toLocaleString()}
-                        </div>
-                    `;
+
+                    // Create elements safely to prevent XSS
+                    const noteTitle = document.createElement('h3');
+                    noteTitle.textContent = note.title;  // textContent is safe
+
+                    const noteContent = document.createElement('div');
+                    noteContent.className = 'note-content';
+                    noteContent.textContent = note.content || 'No content';  // textContent is safe
+
+                    const noteMeta = document.createElement('div');
+                    noteMeta.className = 'note-meta';
+                    noteMeta.textContent = 'Created: ' + new Date(note.createdAt).toLocaleString();
+
+                    // Append elements
+                    noteDiv.appendChild(noteTitle);
+                    noteDiv.appendChild(noteContent);
+                    noteDiv.appendChild(noteMeta);
+
                     container.appendChild(noteDiv);
                 });
             })
             .catch(error => {
                 console.error('Error loading notes:', error);
-                document.getElementById('notesContainer').innerHTML =
-                    '<p style="color: red;">Error loading notes. Please try again.</p>';
+                const errorMsg = document.createElement('p');
+                errorMsg.style.color = 'red';
+                errorMsg.textContent = 'Error loading notes. Please try again.';
+                document.getElementById('notesContainer').appendChild(errorMsg);
             });
     }
 </script>
