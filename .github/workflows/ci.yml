@@ -28,15 +28,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-
 
-      # Install Chrome for Selenium UI tests (safe on ubuntu-latest)
+      # Install Chrome (keep, in case you re-enable Selenium tests later)
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
 
-      # Run all tests (unit + API + BDD + UI) under a virtual display for stability
-      - name: Run tests
+      # Run Unit + API + BDD tests only (skip UI in CI for now)
+      - name: Run tests (unit + api + bdd)
         run: |
           chmod +x mvnw
-        ./mvnw -B -Dtest='*ServiceTest,*ApiTest,CucumberTestRunner' test
+          ./mvnw -B -Dtest="*ServiceTest,*ApiTest,CucumberTestRunner" test
 
       - name: Build JAR
         run: ./mvnw -B -DskipTests package
@@ -46,3 +46,17 @@ jobs:
         with:
           name: app-jar
           path: target/*.jar
+
+      # Optional: print failing test logs if something fails
+      - name: Print surefire reports (on failure)
+        if: failure()
+        run: |
+          echo "---- Surefire TXT ----"
+          if ls target/surefire-reports/*.txt 1> /dev/null 2>&1; then
+            for f in target/surefire-reports/*.txt; do
+              echo "FILE: $f"
+              echo "----------------------"
+              cat "$f"
+              echo
+            done
+          fi
