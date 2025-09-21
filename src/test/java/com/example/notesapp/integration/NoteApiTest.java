@@ -3,14 +3,15 @@ package com.example.notesapp.integration;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
-import static io.restassured.RestAssured.*;
+import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.when;
 import static org.hamcrest.Matchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -20,18 +21,32 @@ public class NoteApiTest {
     @LocalServerPort
     private int port;
 
-    private static Long createdNoteId;
-
     @BeforeEach
-    public void setUp() {
+    void setup() {
+        RestAssured.baseURI = "http://localhost";
         RestAssured.port = port;
     }
 
-    // Test 1: Create a note
+    private long createNoteAndReturnId(String title, String content) {
+        // Use jsonPath().getLong("id") so we don't care if backend returns Integer or Long
+        return given()
+                .contentType(ContentType.JSON)
+                .body("{\"title\":\"" + title + "\",\"content\":\"" + content + "\"}")
+                .when()
+                .post("/api/notes")
+                .then()
+                .statusCode(201)
+                .body("title", equalTo(title))
+                .body("id", notNullValue())
+                .extract()
+                .jsonPath()
+                .getLong("id");
+    }
+
     @Test
     @Order(1)
-    public void testCreateNote() {
-        createdNoteId = given()
+    void testCreateNote() {
+        given()
                 .contentType(ContentType.JSON)
                 .body("{\"title\":\"API Test Note\",\"content\":\"Testing with REST Assured\"}")
                 .when()
@@ -39,15 +54,15 @@ public class NoteApiTest {
                 .then()
                 .statusCode(201)
                 .body("title", equalTo("API Test Note"))
-                .body("id", notNullValue())
-                .extract()
-                .path("id");
+                .body("id", notNullValue());
     }
 
-    // Test 2: Get all notes
     @Test
     @Order(2)
-    public void testGetAllNotes() {
+    void testGetAllNotes() {
+        // Ensure at least one exists
+        createNoteAndReturnId("List Note", "For listing");
+
         when()
                 .get("/api/notes")
                 .then()
@@ -55,52 +70,55 @@ public class NoteApiTest {
                 .body("$", hasSize(greaterThan(0)));
     }
 
-    // Test 3: Get specific note
     @Test
     @Order(3)
-    public void testGetNoteById() {
+    void testGetNoteById() {
+        long id = createNoteAndReturnId("Specific Note", "Specific Content");
+
         when()
-                .get("/api/notes/" + createdNoteId)
+                .get("/api/notes/{id}", id)   // use path param, not string concat
                 .then()
                 .statusCode(200)
-                .body("id", equalTo(createdNoteId.intValue()))
-                .body("title", equalTo("API Test Note"));
+                // JSON numbers may be int-sized; compare against int value
+                .body("id", equalTo((int) id))
+                .body("title", equalTo("Specific Note"));
     }
 
-    // Test 4: Update note
     @Test
     @Order(4)
-    public void testUpdateNote() {
+    void testUpdateNote() {
+        long id = createNoteAndReturnId("Original Title", "Original Content");
+
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"title\":\"Updated API Test Note\",\"content\":\"Updated content\"}")
                 .when()
-                .put("/api/notes/" + createdNoteId)
+                .put("/api/notes/{id}", id)
                 .then()
                 .statusCode(200)
-                .body("title", equalTo("Updated API Test Note"));
+                .body("title", equalTo("Updated API Test Note"))
+                .body("content", equalTo("Updated content"));
     }
 
-    // Test 5: Delete note
     @Test
     @Order(5)
-    public void testDeleteNote() {
+    void testDeleteNote() {
+        long id = createNoteAndReturnId("To Delete", "Will be deleted");
+
         when()
-                .delete("/api/notes/" + createdNoteId)
+                .delete("/api/notes/{id}", id)
                 .then()
                 .statusCode(204);
 
-        // Verify it's deleted
         when()
-                .get("/api/notes/" + createdNoteId)
+                .get("/api/notes/{id}", id)
                 .then()
                 .statusCode(404);
     }
 
-    // Test 6: Create note with empty title
     @Test
     @Order(6)
-    public void testCreateNoteWithEmptyTitle() {
+    void testCreateNoteWithEmptyTitle() {
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"title\":\"\",\"content\":\"Content without title\"}")
