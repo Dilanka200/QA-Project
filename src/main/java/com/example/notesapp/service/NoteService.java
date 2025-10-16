@@ -4,6 +4,7 @@ import com.example.notesapp.model.Note;
 import com.example.notesapp.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -12,10 +13,13 @@ import java.util.Optional;
 public class NoteService {
 
     private final NoteRepository noteRepository;
-    private static final int MIN_TITLE = 3;
-    private static final int MAX_TITLE = 100;
+   private static final int MIN_TITLE = 3;
+   private static final int MAX_TITLE = 100;
 
     private void validateNote(Note note) {
+        if (note == null) {
+            throw new IllegalArgumentException("Note cannot be null");
+        }
         String title = (note.getTitle() == null ? "" : note.getTitle().trim());
         if (title.isEmpty()) throw new IllegalArgumentException("Title cannot be empty");
         if (title.length() < MIN_TITLE) throw new IllegalArgumentException("Title too short");
@@ -32,7 +36,6 @@ public class NoteService {
 
     public Note createNote(Note note) {
         validateNote(note);
-        // Make sure these lines are present:
         note.setTitle(sanitizeInput(note.getTitle()));
         note.setContent(sanitizeInput(note.getContent()));
         return noteRepository.save(note);
@@ -44,7 +47,6 @@ public class NoteService {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Note not found with id: " + id));
 
-        // Make sure these lines use sanitizeInput:
         note.setTitle(sanitizeInput(noteDetails.getTitle()));
         note.setContent(sanitizeInput(noteDetails.getContent()));
 
@@ -57,13 +59,16 @@ public class NoteService {
         noteRepository.delete(note);
     }
 
-
-
+    // Escape HTML characters so scripts render as text (do NOT strip tags)
     private String sanitizeInput(String input) {
         if (input == null) return null;
-        return input.replaceAll("<script>", "")
-                .replaceAll("</script>", "")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;");
+        String s = input;
+        // escape & first to avoid double-encoding
+        s = s.replace("&", "&amp;");
+        s = s.replace("<", "&lt;");
+        s = s.replace(">", "&gt;");
+        // If you also want to escape quotes, uncomment:
+        // s = s.replace("\"", "&quot;").replace("'", "&#x27;");
+        return s;
     }
 }
